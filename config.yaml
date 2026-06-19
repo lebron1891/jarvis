@@ -1,0 +1,29 @@
+# ~/.jarvis/config.yaml — configuration de Jarvis-CYB
+# Édite ce fichier puis relance le daemon (en fait : il est relu à chaque hotkey).
+
+# Modèle Claude utilisé (doit supporter la vision).
+model: claude-sonnet-4-6
+
+# Hotkey global (syntaxe pynput). Exemples :
+#   "<ctrl>+<alt>+j"   "<ctrl>+<shift>+<space>"   "<cmd>+<alt>+j"
+hotkey: "<ctrl>+<alt>+j"
+
+# Nombre max de tokens de la réponse (réponses courtes = moins cher).
+max_tokens: 1024
+
+# Capture d'écran
+screenshot:
+  max_width: 1600      # largeur max en px (redimensionné avant envoi -> économie de tokens)
+  jpeg_quality: 70     # qualité JPEG 1-95
+  monitor: 0           # 0 = tous les écrans, 1 = écran principal, 2 = secondaire, ...
+
+# Question envoyée en mode hotkey (quand tu ne tapes pas de question).
+hotkey_prompt: "Regarde mon écran et dis-moi quoi faire pour avancer."
+
+# Terminal flottant pour afficher la réponse.
+# Vide = auto-détection (x-terminal-emulator, kitty, alacritty, gnome-terminal, xterm...).
+# Sinon donne la commande, ex : "kitty"  ou  "alacritty -e".
+terminal_cmd: ""
+
+# Purge auto des screenshots du cache plus vieux que N heures.
+screenshot_retention_hours: 24

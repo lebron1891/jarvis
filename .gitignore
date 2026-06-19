@@ -1,0 +1,10 @@
+# Virtualenv local créé par install.sh
+.venv/
+
+# Caches Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Divers
+.DS_Store

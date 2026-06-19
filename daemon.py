@@ -56,7 +56,16 @@ def run() -> None:
     """Démarre l'écoute du hotkey global (bloquant)."""
     try:
         from pynput import keyboard
-    except ImportError:
+    except ImportError as exc:
+        # pynput lève aussi ImportError quand aucun serveur X n'est joignable
+        # (headless / SSH sans DISPLAY / Wayland) -> message distinct du « module absent ».
+        msg = str(exc).lower()
+        if "display" in msg or "x connection" in msg or "not supported" in msg:
+            sys.exit(
+                "Hotkey global indisponible : aucun serveur X accessible.\n"
+                "Le daemon nécessite une session X11 (voir README : « Wayland vs X11 »).\n"
+                'En SSH : exporte DISPLAY, ou utilise le mode CLI : jarvis "...".'
+            )
         sys.exit("Module 'pynput' manquant. Lance install.sh (ou pip install pynput).")
 
     core.ensure_dirs()

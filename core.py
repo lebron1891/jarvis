@@ -324,6 +324,14 @@ def show_in_terminal(answer: str, config: dict) -> bool:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(answer)
 
+    def _cleanup() -> None:
+        # Le fichier temp n'est supprimé par 'jarvis _render' que si un terminal
+        # a bien été lancé. Sur les chemins d'échec, on nettoie nous-mêmes.
+        try:
+            os.unlink(tmppath)
+        except OSError:
+            pass
+
     render_cmd = [sys.executable, str(REPO_DIR / "jarvis.py"), "_render", tmppath]
 
     custom = (config.get("terminal_cmd") or "").strip()
@@ -333,6 +341,7 @@ def show_in_terminal(answer: str, config: dict) -> bool:
     else:
         term, flag = _detect_terminal()
         if not term:
+            _cleanup()
             return False
         full = [term] + ([flag] if flag else []) + render_cmd
 
@@ -340,4 +349,5 @@ def show_in_terminal(answer: str, config: dict) -> bool:
         subprocess.Popen(full, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
     except Exception:
+        _cleanup()
         return False

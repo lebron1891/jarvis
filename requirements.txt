@@ -1,0 +1,8 @@
+# Dépendances Jarvis-CYB
+anthropic>=0.39      # client API Claude (messages + vision)
+pillow>=10.0         # redimensionnement + compression JPEG des screenshots
+mss>=9.0             # capture d'écran rapide (X11)
+pynput>=1.7          # hotkey global
+rich>=13.0           # rendu terminal (markdown, panneaux)
+plyer>=2.1           # notifications système
+pyyaml>=6.0          # lecture de config.yaml

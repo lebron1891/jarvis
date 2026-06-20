@@ -1,0 +1,20 @@
+{
+  "name": "mini-monde-3d",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Mini monde 3D explorable en first-person (Three.js + Vite)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "postprocessing": "^6.36.4",
+    "simplex-noise": "^4.0.3",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}

@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Runtime
+uploads/
+coverage/
+logs/
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Prisma
+apps/api/prisma/*.db

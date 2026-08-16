@@ -1,0 +1,23 @@
+{
+  "name": "skillswap",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SkillSwap — exchange skills instead of money",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "build": "npm run build --workspace apps/api && npm run build --workspace apps/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace apps/api",
+    "db:migrate": "npm run db:migrate --workspace apps/api",
+    "db:push": "npm run db:push --workspace apps/api",
+    "db:seed": "npm run db:seed --workspace apps/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

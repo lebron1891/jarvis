@@ -1,0 +1,494 @@
+// SkillSwap database schema
+// One hour taught = one credit. Credits are tracked in an append-only ledger.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum Plan {
+  FREE
+  PREMIUM
+}
+
+enum SkillKind {
+  TEACH
+  LEARN
+}
+
+enum LessonMode {
+  ONLINE
+  IN_PERSON
+  BOTH
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
+enum TransactionType {
+  SIGNUP_BONUS
+  EXCHANGE_SPEND
+  EXCHANGE_EARN
+  REFUND
+  CHALLENGE_REWARD
+  ADMIN_ADJUSTMENT
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  VOICE
+}
+
+enum NotificationType {
+  MESSAGE
+  BOOKING
+  EXCHANGE
+  REVIEW
+  FOLLOW
+  AI
+  ANNOUNCEMENT
+  ACHIEVEMENT
+  SYSTEM
+}
+
+enum TokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// ---------------------------------------------------------------------------
+// Identity & profile
+// ---------------------------------------------------------------------------
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  passwordHash       String?
+  username           String    @unique
+  name               String
+  avatarUrl          String?
+  bio                String?   @db.Text
+  country            String?
+  timezone           String    @default("UTC")
+  languages          String[]  @default([])
+  role               Role      @default(USER)
+  plan               Plan      @default(FREE)
+  premiumUntil       DateTime?
+  profileTheme       String    @default("default")
+  emailVerified      Boolean   @default(false)
+  verifiedTeacher    Boolean   @default(false)
+  twoFactorEnabled   Boolean   @default(false)
+  twoFactorSecret    String?
+  onboardingDone     Boolean   @default(false)
+  isBanned           Boolean   @default(false)
+  banReason          String?
+  creditBalance      Int       @default(0)
+  xp                 Int       @default(0)
+  level              Int       @default(1)
+  streakCount        Int       @default(0)
+  streakUpdatedAt    DateTime?
+  ratingAvg          Float     @default(0)
+  ratingCount        Int       @default(0)
+  completedExchanges Int       @default(0)
+  sessionsTaught     Int       @default(0)
+  sessionsLearned    Int       @default(0)
+  reliabilityScore   Float     @default(100)
+  lastActiveAt       DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  skills             UserSkill[]
+  availability       AvailabilitySlot[]
+  refreshTokens      RefreshToken[]
+  verificationTokens VerificationToken[]
+  oauthAccounts      OAuthAccount[]
+  teachingBookings   Booking[]           @relation("TeacherBookings")
+  learningBookings   Booking[]           @relation("StudentBookings")
+  transactions       CreditTransaction[]
+  reviewsWritten     Review[]            @relation("ReviewAuthor")
+  reviewsReceived    Review[]            @relation("ReviewTarget")
+  conversations      ConversationParticipant[]
+  messages           Message[]
+  reactions          MessageReaction[]
+  notifications      Notification[]
+  followers          Follow[]            @relation("Following")
+  following          Follow[]            @relation("Follower")
+  badges             UserBadge[]
+  challenges         UserChallenge[]
+  reportsMade        Report[]            @relation("Reporter")
+  reportsAgainst     Report[]            @relation("ReportTarget")
+  resolvedReports    Report[]            @relation("ReportResolver")
+  announcements      Announcement[]
+  aiUsages           AiUsage[]
+  customCategories   Category[]
+
+  @@index([username])
+  @@index([lastActiveAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  type      TokenType
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model OAuthAccount {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String // "google" | "apple"
+  providerAccountId String
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Skills & marketplace
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  icon        String   @default("sparkles")
+  isCustom    Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  skills      Skill[]
+}
+
+model Skill {
+  id         String      @id @default(cuid())
+  name       String
+  slug       String      @unique
+  categoryId String
+  createdAt  DateTime    @default(now())
+  category   Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  userSkills UserSkill[]
+
+  @@index([categoryId])
+}
+
+model UserSkill {
+  id            String     @id @default(cuid())
+  userId        String
+  skillId       String
+  kind          SkillKind
+  headline      String?
+  description   String?    @db.Text
+  yearsOfExp    Int        @default(0)
+  hourlyCredits Int        @default(1)
+  mode          LessonMode @default(ONLINE)
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill         Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  bookings      Booking[]
+
+  @@unique([userId, skillId, kind])
+  @@index([skillId, kind, active])
+}
+
+model AvailabilitySlot {
+  id          String   @id @default(cuid())
+  userId      String
+  dayOfWeek   Int // 0 = Sunday ... 6 = Saturday, in the user's timezone
+  startMinute Int // minutes from midnight
+  endMinute   Int
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Bookings & credit exchange
+// ---------------------------------------------------------------------------
+
+model Booking {
+  id               String        @id @default(cuid())
+  teacherId        String
+  studentId        String
+  userSkillId      String
+  status           BookingStatus @default(PENDING)
+  mode             LessonMode    @default(ONLINE)
+  startsAt         DateTime
+  endsAt           DateTime
+  credits          Int
+  notes            String?       @db.Text
+  meetingRoomId    String        @unique @default(cuid())
+  teacherConfirmed Boolean       @default(false)
+  studentConfirmed Boolean       @default(false)
+  reminderSentAt   DateTime?
+  cancelledById    String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  teacher      User                @relation("TeacherBookings", fields: [teacherId], references: [id], onDelete: Cascade)
+  student      User                @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Cascade)
+  userSkill    UserSkill           @relation(fields: [userSkillId], references: [id], onDelete: Cascade)
+  transactions CreditTransaction[]
+  reviews      Review[]
+
+  @@index([teacherId, status])
+  @@index([studentId, status])
+  @@index([startsAt])
+}
+
+model CreditTransaction {
+  id           String          @id @default(cuid())
+  userId       String
+  amount       Int // positive = credit, negative = debit
+  balanceAfter Int
+  type         TransactionType
+  bookingId    String?
+  description  String
+  createdAt    DateTime        @default(now())
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking      Booking?        @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Reputation
+// ---------------------------------------------------------------------------
+
+model Review {
+  id        String   @id @default(cuid())
+  bookingId String
+  authorId  String
+  targetId  String
+  rating    Int // 1..5
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  author    User     @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  target    User     @relation("ReviewTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, authorId])
+  @@index([targetId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Messaging
+// ---------------------------------------------------------------------------
+
+model Conversation {
+  id           String                    @id @default(cuid())
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  lastReadAt     DateTime     @default(now())
+  joinedAt       DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String            @id @default(cuid())
+  conversationId String
+  senderId       String
+  type           MessageType       @default(TEXT)
+  body           String?           @db.Text
+  fileUrl        String?
+  fileName       String?
+  durationSec    Int? // voice messages
+  createdAt      DateTime          @default(now())
+  deletedAt      DateTime?
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  reactions      MessageReaction[]
+
+  @@index([conversationId, createdAt])
+}
+
+model MessageReaction {
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId, emoji])
+}
+
+// ---------------------------------------------------------------------------
+// Social & notifications
+// ---------------------------------------------------------------------------
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Gamification
+// ---------------------------------------------------------------------------
+
+model Badge {
+  id          String      @id @default(cuid())
+  code        String      @unique
+  name        String
+  description String
+  icon        String      @default("award")
+  tier        Int         @default(1)
+  users       UserBadge[]
+}
+
+model UserBadge {
+  userId   String
+  badgeId  String
+  earnedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeId])
+}
+
+model Challenge {
+  id           String          @id @default(cuid())
+  code         String          @unique
+  title        String
+  description  String
+  metric       String // "sessions_taught" | "sessions_learned" | "messages_sent" | "reviews_written"
+  target       Int
+  xpReward     Int             @default(50)
+  creditReward Int             @default(0)
+  startsAt     DateTime
+  endsAt       DateTime
+  users        UserChallenge[]
+}
+
+model UserChallenge {
+  userId      String
+  challengeId String
+  progress    Int       @default(0)
+  completedAt DateTime?
+  claimedAt   DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, challengeId])
+}
+
+// ---------------------------------------------------------------------------
+// Moderation & platform
+// ---------------------------------------------------------------------------
+
+model Report {
+  id           String       @id @default(cuid())
+  reporterId   String
+  targetUserId String?
+  messageId    String?
+  reason       String
+  details      String?      @db.Text
+  status       ReportStatus @default(OPEN)
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  reporter     User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetUser   User?        @relation("ReportTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  resolvedBy   User?        @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  body        String   @db.Text
+  createdById String
+  createdAt   DateTime @default(now())
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+}
+
+model AiUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String // "lesson-plan" | "quiz" | "summarize" | "correct" | "recommend" | "learning-path" | "translate"
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}

@@ -11,8 +11,12 @@
  *   sofia@skillswap.app  — polyglot teaching Spanish
  *   kenji@skillswap.app  — pianist teaching music theory
  */
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+
+process.env.DATABASE_URL ??=
+  "postgresql://skillswap:skillswap@localhost:5432/skillswap";
 
 const prisma = new PrismaClient();
 
